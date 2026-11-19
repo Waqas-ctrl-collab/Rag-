@@ -1,5 +1,13 @@
+chromadb
+ipykernel
 langchain
-langchain-core
 langchain-community
-pypdf
+langchain-core
+langchain-groq
+langchain-text-splitters
 pymupdf
+pypdf
+python-dotenv
+scikit-learn
+sentence-transformers
+tqdm
