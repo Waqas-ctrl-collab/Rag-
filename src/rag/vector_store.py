@@ -41,17 +41,13 @@ class ChromaVectorStore:
             self.collection = self.client.create_collection(
                 name=collection_name,
                 metadata={
-                    "description": "RAG document chunks; normalized vectors with L2 distance",
+                    "description": "RAG document chunks",
                     "hnsw:space": "l2",
                 },
             )
 
         metadata = self.collection.metadata or {}
         self.distance_metric = metadata.get("hnsw:space", "l2")
-        if self.distance_metric not in {"l2", "cosine"}:
-            raise ValueError(
-                f"Unsupported Chroma distance metric: {self.distance_metric}"
-            )
 
     @property
     def count(self) -> int:
@@ -120,25 +116,18 @@ class ChromaVectorStore:
         ids = results["ids"][0] or []
 
         matches: list[dict[str, Any]] = []
-        for doc_id, text, metadata, distance in zip(
-            ids, documents, metadatas, distances
-        ):
+        for doc_id, text, metadata, distance in zip(ids, documents, metadatas, distances):
             similarity = (
                 1.0 - distance / 2.0
                 if self.distance_metric == "l2"
                 else 1.0 - distance
             )
-            matches.append(
-                {
-                    "id": doc_id,
-                    "document": Document(
-                        page_content=text,
-                        metadata=metadata or {},
-                    ),
-                    "distance": float(distance),
-                    "similarity": float(similarity),
-                }
-            )
+            matches.append({
+                "id": doc_id,
+                "document": Document(page_content=text, metadata=metadata or {}),
+                "distance": float(distance),
+                "similarity": float(similarity),
+            })
 
         return matches
 

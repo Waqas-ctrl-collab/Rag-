@@ -11,37 +11,41 @@ def load_documents(
     project_root: Path,
 ) -> list[Document]:
     documents: list[Document] = []
-    supported_files: list[Path] = []
 
     for source_dir in source_dirs:
+        # Skip dirs that don't exist or are empty — don't crash
         if not source_dir.is_dir():
-            raise FileNotFoundError(f"Document directory does not exist: {source_dir}")
-        supported_files.extend(
+            continue
+
+        supported_files = [
             path
             for path in source_dir.rglob("*")
             if path.is_file() and path.suffix.lower() in {".pdf", ".txt"}
-        )
+        ]
 
-    for path in sorted(supported_files, key=lambda item: item.as_posix().casefold()):
-        try:
-            if path.suffix.lower() == ".pdf":
-                loaded = PyMuPDFLoader(str(path)).load()
-            else:
-                loaded = TextLoader(str(path), encoding="utf-8").load()
-        except Exception as exc:
-            raise RuntimeError(f"Could not load document: {path}") from exc
+        for path in sorted(supported_files, key=lambda p: p.as_posix().casefold()):
+            try:
+                if path.suffix.lower() == ".pdf":
+                    loaded = PyMuPDFLoader(str(path)).load()
+                else:
+                    loaded = TextLoader(str(path), encoding="utf-8").load()
+            except Exception as exc:
+                raise RuntimeError(f"Could not load document: {path}") from exc
 
-        try:
-            source = path.resolve().relative_to(project_root.resolve()).as_posix()
-        except ValueError:
-            source = path.resolve().as_posix()
+            try:
+                source = path.resolve().relative_to(project_root.resolve()).as_posix()
+            except ValueError:
+                source = path.resolve().as_posix()
 
-        for document in loaded:
-            document.metadata["source"] = source
-            documents.append(document)
+            for document in loaded:
+                document.metadata["source"] = source
+                documents.append(document)
 
     if not documents:
-        raise ValueError("No PDF or TXT documents were found in the configured folders.")
+        raise ValueError(
+            "No PDF or TXT documents found. "
+            "Add files to data/pdf or data/text_file and re-index."
+        )
 
     return documents
 
