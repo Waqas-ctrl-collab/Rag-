@@ -1,4 +1,5 @@
 import argparse
+import sys
 from typing import Sequence
 
 from .chain import create_rag_chain
@@ -9,6 +10,9 @@ from .vector_store import ChromaVectorStore
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
     parser = argparse.ArgumentParser(description="Ask questions about local documents.")
     parser.add_argument("--question", help="Question to ask the document collection.")
     parser.add_argument(
