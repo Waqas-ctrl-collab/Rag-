@@ -42,44 +42,98 @@ Your PDFs / TXT files
 
 ---
 
-## Requirements
+## Prerequisites
 
-| Requirement | Version |
-|---|---|
-| Python | 3.12 |
-| [Ollama](https://ollama.com) | latest |
-| uv | latest |
+| Tool | Version | Install |
+|---|---|---|
+| Python | **3.12 exactly** | [python.org](https://www.python.org/downloads/) |
+| [Ollama](https://ollama.com) | latest | [ollama.com](https://ollama.com) |
+| [uv](https://docs.astral.sh/uv/) | latest | `pip install uv` or see below |
+| Git | any | [git-scm.com](https://git-scm.com) |
 
 No GPU required — `llama3.2` (3.2B Q4) and `nomic-embed-text` (137M) both run on CPU.  
-Minimum ~6 GB RAM recommended.
+Minimum **6 GB RAM** recommended.
 
 ---
 
-## Quick start
+## Setup from scratch (new clone)
 
-### 1. Install Ollama
-Download and install from [https://ollama.com](https://ollama.com).
+Follow these steps exactly after cloning the repo.
 
-### 2. Add your documents
-Drop PDF or TXT files into:
+### Step 1 — Clone the repo
+
+```bash
+git clone https://github.com/Waqas-ctrl-collab/Rag.git
+cd Rag
 ```
-data/pdf/          ← PDF documents
-data/text_file/    ← plain text files (.txt)
+
+### Step 2 — Install uv
+
+uv is the package manager used by this project. If you don't have it:
+
+**Windows:**
+```powershell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
-The project already includes three sample PDFs:
+
+**macOS / Linux:**
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Restart your terminal after installing so `uv` is on your PATH.
+
+### Step 3 — Create the virtual environment and install dependencies
+
+```bash
+uv sync
+```
+
+This reads `pyproject.toml` and `uv.lock`, creates `.venv/`, and installs all packages including FastAPI, LangChain, ChromaDB, and PyMuPDF. It takes 2–5 minutes on first run.
+
+### Step 4 — Install Ollama and pull the models
+
+Download and install Ollama from [https://ollama.com](https://ollama.com), then pull the two models:
+
+```bash
+ollama pull llama3.2:latest
+ollama pull nomic-embed-text:latest
+```
+
+`llama3.2` is ~2 GB and `nomic-embed-text` is ~274 MB. This only needs to be done once.
+
+### Step 5 — Add your documents *(optional)*
+
+The repo already includes four sample PDFs in `data/pdf/`:
+
+- `The-Alchemist-Paulo-Coelho.pdf`
 - `Artificial_Intelligence_Research_Report.pdf`
 - `LangChain_Research_Report.pdf`
 - `Machine_Learning_Research_Report.pdf`
 
-### 3. Launch
-Double-click **`start.bat`**.  
+To use your own documents, drop PDF or TXT files into:
+```
+data/pdf/          ← PDF documents
+data/text_file/    ← plain text files (.txt)
+```
 
-That's it. It will:
-1. Start the Ollama server (if not running)
-2. Pull `llama3.2:latest` and `nomic-embed-text:latest` (skipped if already downloaded)
-3. Index your documents into ChromaDB (batched, shows progress)
+### Step 6 — Launch
+
+**Windows — double-click `start.bat`**
+
+Or from the terminal:
+```bash
+start.bat
+```
+
+`start.bat` will automatically:
+1. Start the Ollama server (if not already running)
+2. Pull models if missing
+3. Index your documents into ChromaDB (shows batch progress)
 4. Start the FastAPI backend on `http://localhost:8000`
-5. Open your browser automatically
+5. Open your browser
+
+> **First launch takes longer** — Ollama loads the LLM into RAM (~30–60s). Subsequent launches are faster.
 
 ---
 
@@ -91,8 +145,8 @@ The browser UI at `http://localhost:8000` includes:
 - **Sources panel** — each answer shows which document and page it came from
 - **Re-index button** — drop new files into `data/pdf` or `data/text_file` and click to re-index without restarting
 - **Clear chat** button
-- Thinking timer — shows elapsed seconds while the LLM generates
-- Enter to send, Shift+Enter for new line
+- **Thinking timer** — shows elapsed seconds while the LLM generates
+- Enter to send · Shift+Enter for new line
 
 ---
 
@@ -100,7 +154,7 @@ The browser UI at `http://localhost:8000` includes:
 
 ```
 Rag/
-├── start.bat                   ← one-click launcher
+├── start.bat                   ← one-click launcher (Windows)
 ├── frontend/
 │   └── index.html              ← chat UI (pure HTML/CSS/JS, no framework)
 ├── src/rag/
@@ -120,15 +174,15 @@ Rag/
 │   └── Vector_store/           ← ChromaDB persisted data (auto-created)
 ├── tests/
 │   └── test_rag.py
-├── pyproject.toml
-└── uv.lock
+├── pyproject.toml              ← project metadata and dependencies
+└── uv.lock                     ← locked dependency versions
 ```
 
 ---
 
 ## CLI usage
 
-You can also use the command line directly (with the venv active):
+You can also use the command line directly without the browser UI:
 
 ```bash
 # Index documents
@@ -140,7 +194,7 @@ You can also use the command line directly (with the venv active):
 # Index then ask in one command
 .venv\Scripts\python.exe -m rag --index --question "What is LangChain?"
 
-# Control how many chunks are retrieved
+# Control how many chunks are retrieved (default is 3)
 .venv\Scripts\python.exe -m rag --question "Explain transformers" --top-k 5
 ```
 
@@ -148,16 +202,14 @@ You can also use the command line directly (with the venv active):
 
 ## API endpoints
 
-The backend exposes three endpoints:
-
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/` | Serves the chat UI |
 | `GET` | `/health` | Returns `{"status":"ok"}` |
-| `POST` | `/chat` | Ask a question, get answer + sources |
+| `POST` | `/chat` | Ask a question, returns answer + sources |
 | `POST` | `/index` | Re-index all documents |
 
-### `/chat` request body
+### `/chat` request
 ```json
 {
   "question": "What is artificial intelligence?",
@@ -188,23 +240,27 @@ ollama_base_url:      str = "http://localhost:11434"     # Ollama server URL
 collection_name:      str = "pdf_chunks"                 # ChromaDB collection
 ```
 
-To swap models, change these values and re-run `start.bat`.  
-Any model available via `ollama pull` will work.
+To swap models, change these two lines and re-run `start.bat`.  
+Any model available via `ollama pull` will work — for example:
+
+```python
+ollama_model_name: str = "mistral:latest"
+```
 
 ---
 
 ## Performance notes
 
-| Operation | Typical time |
+| Operation | Typical time (CPU only) |
 |---|---|
-| Indexing 3 PDFs (67 chunks) | ~45 seconds |
-| First chat response (model loading) | 30–60 seconds |
-| Subsequent chat responses | 10–20 seconds |
+| Indexing 4 PDFs | ~60–90 seconds (batched, 8 chunks per request) |
+| First chat response | 30–60 seconds (model loading into RAM) |
+| Subsequent responses | 10–20 seconds |
 
-Times are for CPU-only on a typical laptop. A machine with a GPU will be significantly faster.
+A machine with a GPU will be significantly faster.
 
-Embeddings are sent to Ollama in **batches of 8 chunks** to avoid timeouts.  
-The vector store uses **stable SHA-256 chunk IDs** so re-indexing never creates duplicates — it upserts changed chunks and removes stale ones.
+Embeddings are sent to Ollama in **batches of 8 chunks** to avoid HTTP timeouts.  
+The vector store uses **stable SHA-256 chunk IDs** — re-indexing upserts changed chunks and removes stale ones, never creates duplicates.
 
 ---
 
@@ -220,9 +276,27 @@ The vector store uses **stable SHA-256 chunk IDs** so re-indexing never creates 
 
 | Problem | Fix |
 |---|---|
-| `Ollama not found` | Install from [https://ollama.com](https://ollama.com) and restart |
+| `uv: command not found` | Install uv — see Step 2 above |
+| `python 3.12 not found` | Install Python 3.12 from [python.org](https://www.python.org/downloads/) |
+| `Ollama not found` | Install from [ollama.com](https://ollama.com) and restart your terminal |
 | `Read timed out` during indexing | Ollama is overloaded — close other apps and retry |
-| `Collection expecting dimension 384, got 768` | Delete `data/Vector_store/` and re-index |
-| Backend window shows no activity | Check the RAG Backend terminal for the full error |
+| `Collection expecting dimension 384, got 768` | Delete `data/Vector_store/` folder and re-index |
+| Backend window shows no activity | Check the RAG Backend terminal window for the full error message |
 | First question takes very long | Normal — `llama3.2` loads into RAM on first use |
 | Re-index button shows error | Make sure at least one PDF or TXT file exists in the data folders |
+| Port 8000 already in use | Close any other app using port 8000, or change the port in `start.bat` |
+
+---
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| LLM | [Ollama](https://ollama.com) + `llama3.2:latest` |
+| Embeddings | [Ollama](https://ollama.com) + `nomic-embed-text:latest` |
+| Vector store | [ChromaDB](https://www.trychroma.com/) |
+| Backend | [FastAPI](https://fastapi.tiangolo.com/) + [Uvicorn](https://www.uvicorn.org/) |
+| RAG framework | [LangChain](https://python.langchain.com/) |
+| PDF parsing | [PyMuPDF](https://pymupdf.readthedocs.io/) |
+| Package manager | [uv](https://docs.astral.sh/uv/) |
+| Frontend | Pure HTML / CSS / JS |
